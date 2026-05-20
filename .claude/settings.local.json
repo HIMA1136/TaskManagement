@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Domain\\\\Common\\\\Markers\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Domain\\\\Common\\\\Base\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Domain\\\\Common\\\\Errors\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Domain\\\\Projects\\\\Events\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Domain\\\\Tasks\\\\Events\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Common\\\\Interfaces\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Common\\\\Abstractions\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Common\\\\Behaviors\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Common\\\\Exceptions\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Common\\\\Models\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Features\\\\Tasks\\\\Commands\\\\CreateTask\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Features\\\\Tasks\\\\Commands\\\\UpdateTask\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Features\\\\Tasks\\\\Commands\\\\DeleteTask\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Features\\\\Tasks\\\\Commands\\\\ChangeTaskStatus\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Application\\\\Features\\\\Tasks\\\\Queries\\\\GetTaskById\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Infrastructure\\\\Persistence\\\\Configurations\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Infrastructure\\\\Persistence\\\\Repositories\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Infrastructure\\\\Persistence\\\\Interceptors\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Infrastructure\\\\Identity\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\\\\src\\\\TaskManagement.Infrastructure\\\\Services\")",
+      "Bash(dotnet build *)",
+      "Bash(Get-ChildItem -Recurse \"C:\\\\Users\\\\hp\\\\source\\\\repos\\\\Task Managment\" -Name)",
+      "Bash(Sort-Object)"
+    ]
+  }
+}

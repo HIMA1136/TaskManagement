@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "TaskManagement.WebApi": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:2008;http://localhost:2009"
+    }
+  }
+}

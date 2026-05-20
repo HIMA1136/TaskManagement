@@ -1,0 +1,519 @@
+@page "/"
+@rendermode InteractiveServer
+@inject TaskManagementApiClient ApiClient
+@inject IConfiguration Configuration
+
+<PageTitle>FlowBoard</PageTitle>
+
+<div class="workspace-grid">
+    <section class="summary-panel">
+        <div class="summary-header">
+            <div>
+                <p class="eyebrow">Overview</p>
+                <h2>Plan, track, and move work with less friction.</h2>
+            </div>
+            <div class="summary-actions">
+                @if (_session is not null)
+                {
+                    <span class="status-pill success">Signed in</span>
+                    <button class="ghost-button small" @onclick="ClearSession" disabled="@_busy">Sign out</button>
+                }
+                else
+                {
+                    <span class="status-pill">Ready to test</span>
+                }
+            </div>
+        </div>
+
+        <div class="summary-metrics">
+            <div class="metric-card">
+                <span>Projects</span>
+                <strong>@_projects.Count</strong>
+            </div>
+            <div class="metric-card">
+                <span>Visible Tasks</span>
+                <strong>@VisibleTasks.Count()</strong>
+            </div>
+            <div class="metric-card">
+                <span>Session Limit</span>
+                <strong>@_sessionLimitMinutes min</strong>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_info))
+        {
+            <p class="feedback info">@_info</p>
+        }
+    </section>
+
+    <section class="auth-panel">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Access</p>
+                <h3>Sign in</h3>
+            </div>
+        </div>
+
+        <EditForm Model="_loginForm" OnValidSubmit="LoginAsync">
+            <DataAnnotationsValidator />
+            <div class="form-grid">
+                <label>
+                    <span>Email</span>
+                    <InputText @bind-Value="_loginForm.Email" class="form-input" />
+                </label>
+                <label>
+                    <span>Password</span>
+                    <InputText @bind-Value="_loginForm.Password" class="form-input" type="password" />
+                </label>
+            </div>
+            <div class="action-row">
+                <button class="primary-button" type="submit" disabled="@_busy">Sign in</button>
+                <button class="ghost-button" type="button" @onclick="QuickLoginAsync" disabled="@_busy">Quick demo login</button>
+                <button class="ghost-button" type="button" @onclick="UseSeededCredentials">Use seeded account</button>
+            </div>
+        </EditForm>
+
+        <div class="hint-panel">
+            <p><strong>Demo user:</strong> <code>owner@taskmanagement.local</code></p>
+            <p><strong>Password:</strong> <code>Pass1234</code></p>
+            @if (_session is not null)
+            {
+                <p><strong>JWT expires:</strong> @_session.ExpiresAt.ToLocalTime().ToString("g")</p>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <p class="feedback error">@_error</p>
+        }
+    </section>
+
+    <section class="project-panel">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Projects</p>
+                <h3>Choose a board</h3>
+            </div>
+            <button class="ghost-button" @onclick="RefreshAsync" disabled="@_busy || _session is null">Refresh</button>
+        </div>
+
+        <EditForm Model="_createProjectForm" OnValidSubmit="CreateProjectAsync">
+            <DataAnnotationsValidator />
+            <div class="project-form">
+                <InputText @bind-Value="_createProjectForm.Name" class="form-input" placeholder="New project name" />
+                <InputText @bind-Value="_createProjectForm.Description" class="form-input" placeholder="Short description" />
+                <button class="primary-button" type="submit" disabled="@(_busy || _session is null)">Add project</button>
+            </div>
+        </EditForm>
+
+        <div class="project-list">
+            @foreach (var project in _projects)
+            {
+                <button class="project-card @(GetProjectCardClass(project.Id))" @onclick="() => SelectProjectAsync(project.Id)">
+                    <div class="project-card-top">
+                        <h4>@project.Name</h4>
+                        <span class="status-pill">@project.Status</span>
+                    </div>
+                    <p>@project.Description</p>
+                    <div class="project-card-meta">
+                        <span>@project.TaskCount tasks</span>
+                        <span>@project.CreatedAt.ToLocalTime().ToString("MMM d")</span>
+                    </div>
+                </button>
+            }
+        </div>
+    </section>
+
+    <section class="board-panel">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Board</p>
+                <h3>@(_selectedProject?.Name ?? "Select a project to start")</h3>
+            </div>
+            <div class="board-filters">
+                <input @bind="_searchTerm" class="filter-input" placeholder="Search tasks" />
+                <select @bind="_statusFilter" class="filter-input">
+                    <option value="All">All statuses</option>
+                    <option value="Todo">Todo</option>
+                    <option value="InProgress">In Progress</option>
+                    <option value="InReview">In Review</option>
+                    <option value="Done">Done</option>
+                </select>
+            </div>
+        </div>
+
+        <EditForm Model="_createTaskForm" OnValidSubmit="CreateTaskAsync">
+            <DataAnnotationsValidator />
+            <div class="task-form">
+                <InputText @bind-Value="_createTaskForm.Title" class="form-input" placeholder="Task title" />
+                <InputText @bind-Value="_createTaskForm.AssigneeId" class="form-input" placeholder="Assignee" />
+                <select @bind="_createTaskForm.Priority" class="filter-input">
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                </select>
+                <InputDate @bind-Value="_createTaskForm.DueDate" class="form-input" />
+                <InputText @bind-Value="_createTaskForm.Description" class="form-input task-description-input" placeholder="Task description" />
+                <button class="primary-button" type="submit" disabled="@(_busy || _session is null || _selectedProject is null)">Add task</button>
+            </div>
+        </EditForm>
+
+        @if (_selectedProject is null)
+        {
+            <div class="empty-state">
+                Sign in and pick a project to load the board.
+            </div>
+        }
+        else
+        {
+            <div class="board-columns">
+                @foreach (var column in BoardColumns)
+                {
+                    <div class="board-column">
+                        <div class="column-header">
+                            <div>
+                                <p class="column-kicker">@column.Label</p>
+                                <strong>@GetTasksByStatus(column.Value).Count</strong>
+                            </div>
+                        </div>
+
+                        <div class="column-body">
+                            @foreach (var task in GetTasksByStatus(column.Value))
+                            {
+                                <article class="task-card">
+                                    <div class="task-card-top">
+                                        <span class="priority-badge @task.Priority.ToLowerInvariant()">@task.Priority</span>
+                                        <span class="task-owner">@task.AssigneeId</span>
+                                    </div>
+                                    <h4>@task.Title</h4>
+                                    <p class="task-status-line">@DisplayStatus(task.Status)</p>
+                                    <p>@FormatDueDate(task.DueDate)</p>
+                                    <div class="task-actions">
+                                        @if (PreviousStatus(task.Status) is { } previous)
+                                        {
+                                            <button class="ghost-button small" @onclick="() => MoveTaskAsync(task, previous)" disabled="@_busy">Move to @DisplayStatus(previous)</button>
+                                        }
+                                        @if (NextStatus(task.Status) is { } next)
+                                        {
+                                            <button class="primary-button small" @onclick="() => MoveTaskAsync(task, next)" disabled="@_busy">Move to @DisplayStatus(next)</button>
+                                        }
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly List<BoardColumn> BoardColumns =
+    [
+        new("Todo", "Planned"),
+        new("InProgress", "In Flight"),
+        new("InReview", "In Review"),
+        new("Done", "Delivered")
+    ];
+
+    private readonly LoginFormModel _loginForm = new();
+    private readonly CreateProjectFormModel _createProjectForm = new();
+    private readonly CreateTaskFormModel _createTaskForm = new();
+    private readonly List<ProjectSummaryDto> _projects = [];
+
+    private AuthResponse? _session;
+    private ProjectDto? _selectedProject;
+    private string _searchTerm = string.Empty;
+    private string _statusFilter = "All";
+    private string? _error;
+    private string? _info;
+    private bool _busy;
+    private int _sessionLimitMinutes;
+
+    private IEnumerable<TaskSummaryDto> VisibleTasks =>
+        (_selectedProject?.Tasks ?? [])
+            .Where(task => string.IsNullOrWhiteSpace(_searchTerm) || task.Title.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase))
+            .Where(task => _statusFilter == "All" || task.Status.Equals(_statusFilter, StringComparison.OrdinalIgnoreCase));
+
+    protected override void OnInitialized()
+    {
+        _sessionLimitMinutes = Configuration.GetValue<int>("WorkspaceSettings:SessionLimitMinutes", 120);
+        UseSeededCredentials();
+    }
+
+    private void UseSeededCredentials()
+    {
+        _loginForm.Email = "owner@taskmanagement.local";
+        _loginForm.Password = "Pass1234";
+    }
+
+    private async Task LoginAsync()
+    {
+        _busy = true;
+        _error = null;
+        _info = null;
+
+        try
+        {
+            _session = await ApiClient.LoginAsync(new LoginRequest(_loginForm.Email, _loginForm.Password));
+            _info = $"Signed in as {_session.Email}.";
+            await LoadWorkspaceAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ExtractError(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task QuickLoginAsync()
+    {
+        UseSeededCredentials();
+        await LoginAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _info = null;
+
+        try
+        {
+            await LoadWorkspaceAsync();
+            _info = "Workspace refreshed.";
+        }
+        catch (Exception ex)
+        {
+            _error = ExtractError(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task LoadWorkspaceAsync()
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        var projects = await ApiClient.GetProjectsAsync(_session.Token);
+        _projects.Clear();
+        _projects.AddRange(projects.Items);
+
+        var selectedId = _selectedProject?.Id ?? _projects.FirstOrDefault()?.Id;
+        if (selectedId is not null && selectedId != Guid.Empty)
+        {
+            await SelectProjectAsync(selectedId.Value);
+        }
+        else
+        {
+            _selectedProject = null;
+        }
+    }
+
+    private async Task SelectProjectAsync(Guid projectId)
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        _selectedProject = await ApiClient.GetProjectAsync(_session.Token, projectId);
+    }
+
+    private async Task CreateProjectAsync()
+    {
+        if (_session is null || string.IsNullOrWhiteSpace(_createProjectForm.Name))
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _info = null;
+
+        try
+        {
+            var created = await ApiClient.CreateProjectAsync(
+                _session.Token,
+                new CreateProjectRequest(_createProjectForm.Name, _createProjectForm.Description));
+
+            _createProjectForm.Name = string.Empty;
+            _createProjectForm.Description = string.Empty;
+            await LoadWorkspaceAsync();
+            await SelectProjectAsync(created.Id);
+            _info = $"Project '{created.Name}' created.";
+        }
+        catch (Exception ex)
+        {
+            _error = ExtractError(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CreateTaskAsync()
+    {
+        if (_session is null || _selectedProject is null || string.IsNullOrWhiteSpace(_createTaskForm.Title))
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _info = null;
+
+        try
+        {
+            await ApiClient.CreateTaskAsync(
+                _session.Token,
+                _selectedProject.Id,
+                new CreateTaskRequest(
+                    _createTaskForm.Title,
+                    _createTaskForm.Description,
+                    _createTaskForm.Priority,
+                    _createTaskForm.DueDate,
+                    _createTaskForm.AssigneeId));
+
+            _createTaskForm.Reset();
+            _selectedProject = await ApiClient.GetProjectAsync(_session.Token, _selectedProject.Id);
+            _info = "Task created.";
+        }
+        catch (Exception ex)
+        {
+            _error = ExtractError(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task MoveTaskAsync(TaskSummaryDto task, string newStatus)
+    {
+        if (_session is null || _selectedProject is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _info = null;
+
+        try
+        {
+            await ApiClient.ChangeTaskStatusAsync(_session.Token, _selectedProject.Id, task.Id, newStatus);
+            _selectedProject = await ApiClient.GetProjectAsync(_session.Token, _selectedProject.Id);
+            _info = $"Task '{task.Title}' moved to {DisplayStatus(newStatus)}.";
+        }
+        catch (Exception ex)
+        {
+            _error = ExtractError(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void ClearSession()
+    {
+        _error = null;
+        _session = null;
+        _selectedProject = null;
+        _projects.Clear();
+        _info = "Signed out.";
+    }
+
+    private List<TaskSummaryDto> GetTasksByStatus(string status) =>
+        VisibleTasks
+            .Where(task => task.Status.Equals(status, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(task => task.DueDate)
+            .ToList();
+
+    private string GetProjectCardClass(Guid projectId) =>
+        _selectedProject?.Id == projectId ? "selected" : string.Empty;
+
+    private static string DisplayStatus(string value) => value switch
+    {
+        "Todo" => "Todo",
+        "InProgress" => "In Progress",
+        "InReview" => "In Review",
+        "Done" => "Done",
+        "Cancelled" => "Cancelled",
+        _ => value
+    };
+
+    private static string? PreviousStatus(string currentStatus) => currentStatus switch
+    {
+        "InProgress" => "Todo",
+        "InReview" => "InProgress",
+        "Done" => "InProgress",
+        _ => null
+    };
+
+    private static string? NextStatus(string currentStatus) => currentStatus switch
+    {
+        "Todo" => "InProgress",
+        "InProgress" => "InReview",
+        "InReview" => "Done",
+        _ => null
+    };
+
+    private static string FormatDueDate(DateTime? dueDate) =>
+        dueDate is null ? "No due date" : $"Due {dueDate.Value.ToLocalTime():ddd, MMM d}";
+
+    private static string ExtractError(Exception exception)
+    {
+        var message = exception.Message.Replace("{", string.Empty).Replace("}", string.Empty);
+        return message.Length > 220 ? message[..220] : message;
+    }
+
+    private sealed class LoginFormModel
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    private sealed class CreateProjectFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+
+    private sealed class CreateTaskFormModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string Priority { get; set; } = "Medium";
+        public DateTime? DueDate { get; set; } = DateTime.Today.AddDays(7);
+        public string AssigneeId { get; set; } = "owner@taskmanagement.local";
+
+        public void Reset()
+        {
+            Title = string.Empty;
+            Description = string.Empty;
+            Priority = "Medium";
+            DueDate = DateTime.Today.AddDays(7);
+            AssigneeId = "owner@taskmanagement.local";
+        }
+    }
+
+    private sealed record BoardColumn(string Value, string Label);
+}
